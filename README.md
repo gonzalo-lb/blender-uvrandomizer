@@ -9,6 +9,13 @@ Blender Addon.
 * At the moment it works with uv maps that do not exceed the limits (1, 1).
 * Although it could work on uv maps that exceed those coordinates, the addon was not tested under those conditions.
 
+## Installation
+* Download UV Randomizer v0_9-3.py
+* Open Blender.
+* Go to Edit --> Preferences --> Add-ons
+* Click the Install button on the top, and select the downloaded file
+* Click the ckeckbox next to UV: UV Randomizer
+
 ## Tools
 
 ### Translate faces
