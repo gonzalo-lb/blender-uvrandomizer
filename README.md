@@ -1,5 +1,9 @@
 # UV Randomizer
 
+Use version 0.93 for blender versions prior to 3.1
+For Blender 3.1 or above use v0.94
+In the future, both versions will respect the UV Islands
+
 Blender Addon.
 * Tools to apply randomness to the uv map.
 * The tool has 5 functions, which can be applied to all faces, or to selected ones.
