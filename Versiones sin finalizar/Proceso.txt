@@ -1,0 +1,6 @@
+1.- Agregar la variable keep islands para conseguir desde el panel
+keep_islands = UVRandomTranslateProps.keepIslands
+
+2.- Agregar nuevo list en el que se indexen las caras seleccionadas
+selected_uv_faces_before_applying_operator = GetSelectedUVFaces_InEditMode(bm, uv_layer)
+selected_uv_faces = selected_uv_faces_before_applying_operator
