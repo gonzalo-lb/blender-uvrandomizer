@@ -9,6 +9,7 @@ bl_info = {
     "category": "UV",
 }
 
+from operator import truediv
 import bpy
 import bmesh
 import random
@@ -46,16 +47,11 @@ def SetSelectedFaces_InEditMode(bmeshref, uvlayer, selectedFaces):
 
 def QuitarDatosDelList(listDeEntrada, elOtroList):
     """Agarra el list de entrada y lo compara con el otro. Si alguno de los valores del list de entrada est�n en el otro, el valor se borra. Devuelve el list de entrada sin los que se repitan en el otro list."""
-    listToReturn = listDeEntrada
-    iterator = 0
-    x = 0
-    while x < len(listDeEntrada):
-        if listDeEntrada[x] in elOtroList:
-            listToReturn.remove(iterator)
-            iterator-=1
-        iterator+=1
-        x+=1
-    return listToReturn        
+    toReturn = listDeEntrada.copy()
+    for i in range(len(listDeEntrada)):
+        if listDeEntrada[i] in elOtroList:
+            del toReturn[i]
+    return toReturn
 
 class TESTADDON_OT_StandardRotateAndResize(bpy.types.Operator):
     """Rotate selected faces"""
@@ -64,8 +60,8 @@ class TESTADDON_OT_StandardRotateAndResize(bpy.types.Operator):
     
     def execute(self, context):
         
-        bpy.ops.transform.rotate(value=0.591742, orient_axis='Z', orient_type='VIEW', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='VIEW', mirror=False, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-        bpy.ops.transform.resize(value=(0.605485, 0.605485, 0.605485), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=False, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+        #bpy.ops.transform.rotate(value=0.591742, orient_axis='Z', orient_type='VIEW', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='VIEW', mirror=False, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+        #bpy.ops.transform.resize(value=(0.605485, 0.605485, 0.605485), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=False, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
         testSelectedFaces = [1, 3, 9]
         linkedFaces = [1, 2, 3, 4, 5, 6]
         print("Selected Faces: ")
