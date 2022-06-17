@@ -3,32 +3,20 @@ keep_islands = UVRandomTranslateProps.keepIslands
 
 2.- Agregar nuevo list en el que se indexen las caras seleccionadas
 selected_uv_faces_before_applying_operator = GetSelectedUVFaces_InEditMode(bm, uv_layer)
-selected_uv_faces = selected_uv_faces_before_applying_operator
+selected_uv_faces = selected_uv_faces_before_applying_operator.copy()
+
+2.b.- Modificar la variable utilizada al final de la función, cuando se vuelven a poner las caras que estaban seleccionadas
+SetSelectedFaces_InEditMode(bm, uv_layer, selected_uv_faces_before_applying_operator)
 
 3.- Donde arranque la funcionalidad armar el if-else con el keep_islands
+if keep_islands == False:
 
-4.- Ejemplo de funcionalidad con el RandomTranslateSelected
-	for face in bm.faces:
-                if facenumber in selected_uv_faces:
-                    # Primero des-selecciona todo
-                    bpy.ops.uv.select_all(action='DESELECT')
+4.- Aplicar la funcionalidad con las islands
 
-                    # Selecciona la cara en la que está el iterador
-                    for vert in face.loops:
-                        vert[uv_layer].select = True
-
-                    # Selecciona el resto de la Island
-                    bpy.ops.uv.select_linked()
-
-                    # Define los valores aleatorios
-                    x_rand = random.uniform(x_min, x_max)
-                    y_rand = random.uniform(y_min, y_max)
-                    
-                    # Mueve la Island
-                    bpy.ops.transform.translate(value=(x_rand, y_rand, 0), orient_axis_ortho='X', orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=False, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+5.- Quitar las caras duplicadas
 
                     # Quita las caras duplicadas del selected_uv_faces
                     temp_selected_uv_faces = GetSelectedUVFaces_InEditMode(bm, uv_layer)
                     selected_uv_faces = CompareListsAndRemoveElements(selected_uv_faces, temp_selected_uv_faces)
 
-                facenumber += 1
+
