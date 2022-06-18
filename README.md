@@ -1,8 +1,4 @@
-# UV Randomizer
-
-Use version 0.93 for blender versions prior to 3.1
-For Blender 3.1 or above use v0.94
-In the future, both versions will respect the UV Islands
+# UV Randomizer v.1.00
 
 Blender Addon.
 * Tools to apply randomness to the uv map.
@@ -14,7 +10,7 @@ Blender Addon.
 * Although it could work on uv maps that exceed those coordinates, the addon was not tested under those conditions.
 
 ## Installation
-* Download UV Randomizer v0_9-3.py
+* Download UV Randomizer v1_00.py
 * Open Blender.
 * Go to Edit --> Preferences --> Add-ons
 * Click the Install button on the top, and select the downloaded file
