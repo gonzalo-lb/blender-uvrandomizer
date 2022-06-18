@@ -1,37 +1,22 @@
 # UV RAMDOMIZER
-# V. 0.95
+# V. 0.93
 
-# IMPLEMENTACIONES DE LA VERSION 0.94:
-#   COMPATIBILIDAD CON VERSION 3.1 DE BLENDER
+# IMPLEMENTACIONES:
+#   SE SOLUCIONÓ FALLA EN RANDOM SHUFFLE CUANDO FUNCIONA EN OBJECT MODE
+#   SE TESTEÓ
 
 # A IMPLEMENTAR EN ESTA VERSIÓN:
-#   QUE TENGA EN CUENTA LAS UV ISLANDS
-#   QUE FUNCIONE EN TODAS LAS VERSIONES DE BLENDER
-
-# LO QUE LOGRÉ HACER HASTA AHORA
-#   CREAR EL BOOLEAN DE KEEPISLANDS EN EL PROPERTY GROUP
-#   INSERTAR EL BOOLEAN EN EL PANEL QUE UTILIZA EL USUARIO
-#   APLICAR EL KEEPISLANDS EN UVRANDOMIZER_OT_UvRandomTranslateSelected
-#   APLICAR EL KEEPISLANDS EN UVRANDOMIZER_OT_RandomTranslateAll
-#   APLICAR EL KEEPISLANDS EN UVRANDOMIZER_OT_RandomRotateSelected
-#   APLICAR EL KEEPISLANDS EN UVRANDOMIZER_OT_RandomRotateAll
-#   APLICAR EL KEEPISLANDS EN UVRANDOMIZER_OT_RandomScaleSelected
-#   APLICAR EL KEEPISLANDS EN UVRANDOMIZER_OT_RandomScaleAll
-
-# SEGUIR CON:
-#   APLICAR EL KEEPISLANDS EN UVRANDOMIZER_OT_UvRandomSwapFaces
-#   APLICAR EL KEEPISLANDS EN UVRANDOMIZER_OT_UvRandomSwapSelectedFaces
-#   APLICAR EL KEEPISLANDS EN UVRANDOMIZER_OT_UvRandomShuffleSelectedFaces
-#   APLICAR EL KEEPISLANDS EN UVRANDOMIZER_OT_UvRandomShuffleFaces
+#   REVISAR ORTOGRAFÍA, Y LOS TÉRMINOS UTILIZADOS EN EL UI
+#   NUCLEAR LOS DOS FOR DEL RANDOM SHUFFLE EN UNO SOLO
 
 bl_info = {
     "name": "UV Randomizer",
     "author": "Gonzalo Lopez Borghello",
-    "version": (0, 95),
-    "blender": (3, 1, 0),
+    "version": (0, 93),
+    "blender": (2, 90, 0),
     "location": "UV EDITOR > Tabs (N Key) > UV Randomizer",
-    "description": "Randomizes the UV faces",
-    "doc_url": "https://github.com/gonzalo-lb/blender-uvrandomizer",
+    "description": "Randomizes the selected UV faces",
+    "doc_url": "",
     "category": "UV",
 }
 
@@ -39,14 +24,6 @@ import bpy
 import bmesh
 import random
 from math import radians
-
-def CompareListsAndRemoveElements(listDeEntrada, elOtroList):
-    """Agarra el list de entrada y lo compara con el otro. Si alguno de los valores del list de entrada est�n en el otro, el valor se borra. Devuelve el list de entrada sin los que se repitan en el otro list."""
-    toReturn = listDeEntrada.copy()
-    for i in range(len(listDeEntrada)):
-        if listDeEntrada[i] in elOtroList:
-            toReturn.remove(listDeEntrada[i])
-    return toReturn
 
 def GetSelectedUVFaces_InEditMode(bmeshref, uvlayer):
     """Devuelve un list con las caras seleccionadas.
@@ -176,9 +153,6 @@ def GetFaceInfo_EditMode(bmeshref, uvlayer, selectedFaces, returnCentroids=True,
         return xcentroid, ycentroid, faceOrder, xminface, xmaxface, yminface, ymaxface    
 
 class UVRANDOMIZER_PG_UvRandomizer(bpy.types.PropertyGroup):
-        #Keep islands
-        keepIslands: bpy.props.BoolProperty(name= "Keep islands", default= True, description="If checked, the changes will be aplied to the whole island, even if a single face is selected [FOR NOW, IT WORKS ONLY WITH THE 'TRANSLATE FACES' FUNCTION]")
-
         #Translate
         minX : bpy.props.FloatProperty(name= "Min X Translate", default= -0.1, description="Minimum amount of translation on X axis")
         maxX : bpy.props.FloatProperty(name= "Max X Translate", default= 0.1, description="Maximum amount of translation on X axis")
@@ -190,14 +164,14 @@ class UVRANDOMIZER_PG_UvRandomizer(bpy.types.PropertyGroup):
         #Rotation
         rotMin : bpy.props.FloatProperty(name= "Min Rotation", default= 0, description="Minimum amount of rotation")
         rotMax : bpy.props.FloatProperty(name= "Min Rotation", default= 180, description="Maximum amount of rotation")
-        applySameRandomRot : bpy.props.BoolProperty(name= "Apply same random value", default= False, description="Applies the same random rotation value to each face or island")
+        applySameRandomRot : bpy.props.BoolProperty(name= "Apply same random value", default= False, description="Applies the same random rotation value to each face")
         clampValueRotEnabled : bpy.props.BoolProperty(name= "Clamp", default= True, description="Clamps the value to a multiplier of the selected angle. If checked, the Min/Max Rotation values won't be used")
         clampValue : bpy.props.FloatProperty(name= "Clamp Value", default= 90, description="Clamp value")
         
         #Scale
         scaleMin : bpy.props.FloatProperty(name= "Min Scale", default= 0.75, description="Minimum scaling value")
         scaleMax : bpy.props.FloatProperty(name= "Min Scale", default= 1.25, description="Maximum scaling value")
-        applySameRandomScale : bpy.props.BoolProperty(name= "Apply same random value", default= False, description="Applies the same random scaling value to each face or island")
+        applySameRandomScale : bpy.props.BoolProperty(name= "Apply same random value", default= False, description="Applies the same random scaling value to each face")
         applyEvenScale : bpy.props.BoolProperty(name= "Even scale", default= True, description="Applies the same random value to both X and Y axis")
         
         #Todo
@@ -229,7 +203,6 @@ class UVRANDOMIZER_OT_UvRandomTranslateSelected(bpy.types.Operator):
         y_max = UVRandomTranslateProps.maxY
         use_xaxis = UVRandomTranslateProps.useXAxis
         use_yaxis = UVRandomTranslateProps.useYAxis
-        keep_islands = UVRandomTranslateProps.keepIslands
         
         # Get a BMesh representation
         obj = bpy.context.edit_object
@@ -239,54 +212,27 @@ class UVRANDOMIZER_OT_UvRandomTranslateSelected(bpy.types.Operator):
         uv_layer = bm.loops.layers.uv.active
         
         # Indexa las caras seleccionadas
-        selected_uv_faces_before_applying_operator = GetSelectedUVFaces_InEditMode(bm, uv_layer)
-        selected_uv_faces = selected_uv_faces_before_applying_operator.copy()
+        selected_uv_faces = GetSelectedUVFaces_InEditMode(bm, uv_layer)
 
         # Mueve las caras
         facenumber = 0
 
-        if keep_islands == False:
-            for face in bm.faces:
-                if facenumber in selected_uv_faces:
-                    x_rand = random.uniform(x_min, x_max)
-                    y_rand = random.uniform(y_min, y_max)
-                    
-                    for vert in face.loops:
-                        if use_xaxis:
-                            vert[uv_layer].uv[0] += x_rand
-                        if use_yaxis:
-                            vert[uv_layer].uv[1] += y_rand
-                facenumber += 1        
-        else:
-            for face in bm.faces:
-                if facenumber in selected_uv_faces:
-                    # Primero des-selecciona todo
-                    bpy.ops.uv.select_all(action='DESELECT')
-
-                    # Selecciona la cara en la que está el iterador
-                    for vert in face.loops:
-                        vert[uv_layer].select = True
-
-                    # Selecciona el resto de la Island
-                    bpy.ops.uv.select_linked()
-
-                    # Define los valores aleatorios
-                    x_rand = random.uniform(x_min, x_max)
-                    y_rand = random.uniform(y_min, y_max)
-                    
-                    # Mueve la Island
-                    bpy.ops.transform.translate(value=(x_rand, y_rand, 0), orient_axis_ortho='X', orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=False, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-
-                    # Quita las caras duplicadas del selected_uv_faces
-                    temp_selected_uv_faces = GetSelectedUVFaces_InEditMode(bm, uv_layer)
-                    selected_uv_faces = CompareListsAndRemoveElements(selected_uv_faces, temp_selected_uv_faces)
-
-                facenumber += 1
+        for face in bm.faces:
+            if facenumber in selected_uv_faces:
+                x_rand = random.uniform(x_min, x_max)
+                y_rand = random.uniform(y_min, y_max)
+                
+                for vert in face.loops:
+                    if use_xaxis:
+                        vert[uv_layer].uv[0] += x_rand
+                    if use_yaxis:
+                        vert[uv_layer].uv[1] += y_rand
+            facenumber += 1
         
         # Se asegura de que queden seleccionados solo los vértices de las caras utilizadas
-        SetSelectedFaces_InEditMode(bm, uv_layer, selected_uv_faces_before_applying_operator)
+        SetSelectedFaces_InEditMode(bm, uv_layer, selected_uv_faces)
         
-        bmesh.update_edit_mesh(me)
+        bmesh.update_edit_mesh(me, True)
         self.report({'INFO'}, "RANDOM TRANSLATE: Done!")    
         return {'FINISHED'}
 
@@ -314,7 +260,6 @@ class UVRANDOMIZER_OT_RandomTranslateAll(bpy.types.Operator):
         y_max = UVRandomTranslateProps.maxY    
         use_xaxis = UVRandomTranslateProps.useXAxis
         use_yaxis = UVRandomTranslateProps.useYAxis
-        keep_islands = UVRandomTranslateProps.keepIslands
         
         # Get a BMesh representation
         obj = bpy.context.edit_object
@@ -324,57 +269,25 @@ class UVRANDOMIZER_OT_RandomTranslateAll(bpy.types.Operator):
         uv_layer = bm.loops.layers.uv.active
         
         # Consigue las caras seleccionadas, para dejarlas como estaban luego de finalizar
-        selected_uv_faces_before_applying_operator = GetSelectedUVFaces_InEditMode(bm, uv_layer)
+        selected_uv_faces = GetSelectedUVFaces_InEditMode(bm, uv_layer)
 
         bpy.ops.uv.select_all(action='DESELECT')
         
         # Mueve las caras
-        if keep_islands == False:
-            for face in bm.faces:
-                x_rand = random.uniform(x_min, x_max)
-                y_rand = random.uniform(y_min, y_max)
-                for vert in face.loops:
-                    if use_xaxis:
-                        vert[uv_layer].uv[0] += x_rand
-                    if use_yaxis:
-                        vert[uv_layer].uv[1] += y_rand
-        else:
 
-            # ESTA PARTE LA TRATA COMO A UN RANDOM-TRNASLATE-SELECTED, PERO CON TODAS LAS CARAS SELECCIONADAS
-            # PARA PODER HACER LAS COMPARACIONES Y NO MOVER MUCHAS VECES LA MISMA ISLAND
-
-            facenumber = 0
-            bpy.ops.uv.select_all(action='SELECT')
-            selected_uv_faces = GetSelectedUVFaces_InEditMode(bm, uv_layer)            
-            for face in bm.faces:
-                if facenumber in selected_uv_faces:
-                    # Primero des-selecciona todo
-                    bpy.ops.uv.select_all(action='DESELECT')
-
-                    # Selecciona la cara en la que está el iterador
-                    for vert in face.loops:
-                        vert[uv_layer].select = True
-
-                    # Selecciona el resto de la Island
-                    bpy.ops.uv.select_linked()
-
-                    # Define los valores aleatorios
-                    x_rand = random.uniform(x_min, x_max)
-                    y_rand = random.uniform(y_min, y_max)
-                    
-                    # Mueve la Island
-                    bpy.ops.transform.translate(value=(x_rand, y_rand, 0), orient_axis_ortho='X', orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=False, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-
-                    # Quita las caras duplicadas del selected_uv_faces
-                    temp_selected_uv_faces = GetSelectedUVFaces_InEditMode(bm, uv_layer)
-                    selected_uv_faces = CompareListsAndRemoveElements(selected_uv_faces, temp_selected_uv_faces)
-
-                facenumber += 1
+        for face in bm.faces:
+            x_rand = random.uniform(x_min, x_max)
+            y_rand = random.uniform(y_min, y_max)
+            for vert in face.loops:
+                if use_xaxis:
+                    vert[uv_layer].uv[0] += x_rand
+                if use_yaxis:
+                    vert[uv_layer].uv[1] += y_rand
         
         # Vuelve a dejar las caras como estaban
-        SetSelectedFaces_InEditMode(bm, uv_layer, selected_uv_faces_before_applying_operator)
+        SetSelectedFaces_InEditMode(bm, uv_layer, selected_uv_faces)
 
-        bmesh.update_edit_mesh(me)
+        bmesh.update_edit_mesh(me, True)
         
         if hasToReturn == True:
             bpy.ops.object.editmode_toggle()
@@ -511,7 +424,7 @@ class UVRANDOMIZER_OT_UvRandomSwapSelectedFaces(bpy.types.Operator):
             facenumber += 1
 
         #write the mesh back if you changed the uvs
-        bmesh.update_edit_mesh(me)
+        bmesh.update_edit_mesh(me, True)
         self.report({'INFO'}, "RANDOM SWAP: Done!")
         return {'FINISHED'}
 
@@ -573,7 +486,7 @@ class UVRANDOMIZER_OT_UvRandomShuffleSelectedFaces(bpy.types.Operator):
             facenumber += 1
 
         #write the mesh back if you changed the uvs
-        bmesh.update_edit_mesh(me)
+        bmesh.update_edit_mesh(me, True)
         self.report({'INFO'}, "RANDOM SHUFFLE: Done!")
         return {'FINISHED'}
 
@@ -687,8 +600,6 @@ class UVRANDOMIZER_OT_RandomRotateSelected(bpy.types.Operator):
         clampEnabled = UVRandomTranslateProps.clampValueRotEnabled
         clampValue = UVRandomTranslateProps.clampValue
 
-        keep_islands = UVRandomTranslateProps.keepIslands
-
         # Get a BMesh representation
         obj = bpy.context.edit_object
         me = obj.data
@@ -697,8 +608,7 @@ class UVRANDOMIZER_OT_RandomRotateSelected(bpy.types.Operator):
         uv_layer = bm.loops.layers.uv.active
 
         # Indexa las caras seleccionadas
-        selected_uv_faces_before_applying_operator = GetSelectedUVFaces_InEditMode(bm, uv_layer)
-        selected_uv_faces = selected_uv_faces_before_applying_operator.copy()
+        selected_uv_faces = GetSelectedUVFaces_InEditMode(bm, uv_layer)
 
         bpy.ops.uv.select_all(action='DESELECT')
         
@@ -712,58 +622,28 @@ class UVRANDOMIZER_OT_RandomRotateSelected(bpy.types.Operator):
 
         # Rota las caras
         facenumber = 0
+        for face in bm.faces:
+            if facenumber in selected_uv_faces:
+                bpy.context.scene.tool_settings.uv_select_mode = 'VERTEX'
+                for vert in face.loops:
+                    vert[uv_layer].select = True                    
 
-        if keep_islands == False:
-            for face in bm.faces:
-                if facenumber in selected_uv_faces:
-                    bpy.context.scene.tool_settings.uv_select_mode = 'VERTEX'
-                    for vert in face.loops:
-                        vert[uv_layer].select = True                    
-
-                    bpy.context.scene.tool_settings.uv_select_mode = 'FACE'
-                    if sameRandom == False:
-                        if clampEnabled:
-                            tempVar1 = 360 / clampValue
-                            randTimes = int(random.uniform(0, int(tempVar1)))
-                            currentRot =  radians(randTimes * clampValue)            
-                        else:
-                            currentRot = radians(random.uniform(rot_min, rot_max))
-                    bpy.ops.transform.rotate(value=currentRot, orient_axis='Z', orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-                    bpy.ops.uv.select_all(action='DESELECT')
-                facenumber += 1
-        else:
-            for face in bm.faces:
-                if facenumber in selected_uv_faces:
-                    # Primero des-selecciona todo
-                    bpy.ops.uv.select_all(action='DESELECT')
-
-                    # Selecciona la cara en la que está el iterador
-                    for vert in face.loops:
-                        vert[uv_layer].select = True
-
-                    # Selecciona el resto de la Island
-                    bpy.ops.uv.select_linked()
-
-                    # Rota las islands
-                    bpy.context.scene.tool_settings.uv_select_mode = 'FACE'
-                    if sameRandom == False:
-                        if clampEnabled:
-                            tempVar1 = 360 / clampValue
-                            randTimes = int(random.uniform(0, int(tempVar1)))
-                            currentRot =  radians(randTimes * clampValue)            
-                        else:
-                            currentRot = radians(random.uniform(rot_min, rot_max))
-                    bpy.ops.transform.rotate(value=currentRot, orient_axis='Z', orient_type='VIEW', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='VIEW', mirror=False, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-
-                    # Quita las caras duplicadas del selected_uv_faces
-                    temp_selected_uv_faces = GetSelectedUVFaces_InEditMode(bm, uv_layer)
-                    selected_uv_faces = CompareListsAndRemoveElements(selected_uv_faces, temp_selected_uv_faces)
-                facenumber += 1
+                bpy.context.scene.tool_settings.uv_select_mode = 'FACE'
+                if sameRandom == False:
+                    if clampEnabled:
+                        tempVar1 = 360 / clampValue
+                        randTimes = int(random.uniform(0, int(tempVar1)))
+                        currentRot =  radians(randTimes * clampValue)            
+                    else:
+                        currentRot = radians(random.uniform(rot_min, rot_max))
+                bpy.ops.transform.rotate(value=currentRot, orient_axis='Z', orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+                bpy.ops.uv.select_all(action='DESELECT')
+            facenumber += 1
 
         # Se asegura de que queden seleccionados solo los vértices de las caras utilizadas
-        SetSelectedFaces_InEditMode(bm, uv_layer, selected_uv_faces_before_applying_operator)
+        SetSelectedFaces_InEditMode(bm, uv_layer, selected_uv_faces)
 
-        bmesh.update_edit_mesh(me)
+        bmesh.update_edit_mesh(me, True)
         self.report({'INFO'}, "RANDOM ROTATION: Done!")
         return {'FINISHED'}
 
@@ -793,8 +673,6 @@ class UVRANDOMIZER_OT_RandomRotateAll(bpy.types.Operator):
         clampEnabled = UVRandomTranslateProps.clampValueRotEnabled
         clampValue = UVRandomTranslateProps.clampValue
 
-        keep_islands = UVRandomTranslateProps.keepIslands
-
         # Get a BMesh representation
         obj = bpy.context.edit_object
         me = obj.data
@@ -803,8 +681,7 @@ class UVRANDOMIZER_OT_RandomRotateAll(bpy.types.Operator):
         uv_layer = bm.loops.layers.uv.active
         
         # Consigue las caras seleccionadas, para dejarlas como estaban luego de finalizar
-        selected_uv_faces_before_applying_operator = GetSelectedUVFaces_InEditMode(bm, uv_layer)
-        selected_uv_faces = selected_uv_faces_before_applying_operator.copy()
+        selected_uv_faces = GetSelectedUVFaces_InEditMode(bm, uv_layer)
 
         bpy.ops.uv.select_all(action='DESELECT')
         
@@ -816,64 +693,28 @@ class UVRANDOMIZER_OT_RandomRotateAll(bpy.types.Operator):
         else:
             currentRot = radians(random.uniform(rot_min, rot_max))
 
-        # Rota las caras       
-
-        if keep_islands == False:
-            for face in bm.faces:
-                bpy.context.scene.tool_settings.uv_select_mode = 'VERTEX'
-                for vert in face.loops:
-                    vert[uv_layer].select = True
-                bpy.context.scene.tool_settings.uv_select_mode = 'FACE'
-                if sameRandom == False:
-                    if clampEnabled:
-                        tempVar1 = 360 / clampValue
-                        randTimes = int(random.uniform(0, int(tempVar1)))
-                        currentRot =  radians(randTimes * clampValue)            
-                    else:
-                        currentRot = radians(random.uniform(rot_min, rot_max))
-                bpy.ops.transform.rotate(value=currentRot, orient_axis='Z', orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-                bpy.ops.uv.select_all(action='DESELECT')                
-        else:
-
-            # ESTA PARTE LA TRATA COMO A UN RANDOM-ROTATE-SELECTED, PERO CON TODAS LAS CARAS SELECCIONADAS
-            # PARA PODER HACER LAS COMPARACIONES Y NO MOVER MUCHAS VECES LA MISMA ISLAND
-
-            facenumber = 0
-
-            bpy.ops.uv.select_all(action='SELECT')
-            selected_uv_faces = GetSelectedUVFaces_InEditMode(bm, uv_layer)
-            for face in bm.faces:
-                if facenumber in selected_uv_faces:
-                    # Primero des-selecciona todo
-                    bpy.ops.uv.select_all(action='DESELECT')
-
-                    # Selecciona la cara en la que está el iterador
-                    for vert in face.loops:
-                        vert[uv_layer].select = True
-
-                    # Selecciona el resto de la Island
-                    bpy.ops.uv.select_linked()
-
-                    # Rota las islands
-                    bpy.context.scene.tool_settings.uv_select_mode = 'FACE'
-                    if sameRandom == False:
-                        if clampEnabled:
-                            tempVar1 = 360 / clampValue
-                            randTimes = int(random.uniform(0, int(tempVar1)))
-                            currentRot =  radians(randTimes * clampValue)            
-                        else:
-                            currentRot = radians(random.uniform(rot_min, rot_max))
-                    bpy.ops.transform.rotate(value=currentRot, orient_axis='Z', orient_type='VIEW', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='VIEW', mirror=False, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)                    
-                    
-                    # Quita las caras duplicadas del selected_uv_faces
-                    temp_selected_uv_faces = GetSelectedUVFaces_InEditMode(bm, uv_layer)
-                    selected_uv_faces = CompareListsAndRemoveElements(selected_uv_faces, temp_selected_uv_faces)
-                facenumber += 1
+        # Rota las caras
+        facenumber = 0
+        for face in bm.faces:
+            bpy.context.scene.tool_settings.uv_select_mode = 'VERTEX'
+            for vert in face.loops:
+                vert[uv_layer].select = True
+            bpy.context.scene.tool_settings.uv_select_mode = 'FACE'
+            if sameRandom == False:
+                if clampEnabled:
+                    tempVar1 = 360 / clampValue
+                    randTimes = int(random.uniform(0, int(tempVar1)))
+                    currentRot =  radians(randTimes * clampValue)            
+                else:
+                    currentRot = radians(random.uniform(rot_min, rot_max))
+            bpy.ops.transform.rotate(value=currentRot, orient_axis='Z', orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+            bpy.ops.uv.select_all(action='DESELECT')
+            facenumber += 1
         
         # Vuelve a dejar las caras como estaban
-        SetSelectedFaces_InEditMode(bm, uv_layer, selected_uv_faces_before_applying_operator)
+        SetSelectedFaces_InEditMode(bm, uv_layer, selected_uv_faces)
 
-        bmesh.update_edit_mesh(me)
+        bmesh.update_edit_mesh(me, True)
         
         if hasToReturn == True:
             bpy.ops.object.editmode_toggle()
@@ -903,8 +744,6 @@ class UVRANDOMIZER_OT_RandomScaleSelected(bpy.types.Operator):
         sameRandomScale = UVRandomTranslateProps.applySameRandomScale
         evenScale = UVRandomTranslateProps.applyEvenScale
 
-        keep_islands = UVRandomTranslateProps.keepIslands
-
         # Get a BMesh representation
         obj = bpy.context.edit_object
         me = obj.data
@@ -913,8 +752,7 @@ class UVRANDOMIZER_OT_RandomScaleSelected(bpy.types.Operator):
         uv_layer = bm.loops.layers.uv.active
 
         # Indexa las caras seleccionadas
-        selected_uv_faces_before_applying_operator = GetSelectedUVFaces_InEditMode(bm, uv_layer)
-        selected_uv_faces = selected_uv_faces_before_applying_operator.copy()
+        selected_uv_faces = GetSelectedUVFaces_InEditMode(bm, uv_layer)
 
         bpy.ops.uv.select_all(action='DESELECT')
         
@@ -924,54 +762,26 @@ class UVRANDOMIZER_OT_RandomScaleSelected(bpy.types.Operator):
 
         # Aplica el scaling las caras
         facenumber = 0
+        for face in bm.faces:
+            if facenumber in selected_uv_faces:
+                bpy.context.scene.tool_settings.uv_select_mode = 'VERTEX'
+                for vert in face.loops:
+                    vert[uv_layer].select = True                    
 
-        if keep_islands == False:
-            for face in bm.faces:
-                if facenumber in selected_uv_faces:
-                    bpy.context.scene.tool_settings.uv_select_mode = 'VERTEX'
-                    for vert in face.loops:
-                        vert[uv_layer].select = True                    
-
-                    bpy.context.scene.tool_settings.uv_select_mode = 'FACE'
-                    if sameRandomScale == False:
-                        currentScale = random.uniform(scale_min, scale_max)
-                        currentScale2 = random.uniform(scale_min, scale_max)
-                    bpy.ops.transform.resize(value=(currentScale, currentScale, currentScale), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-                    if evenScale == False:
-                        bpy.ops.transform.resize(value=(1, currentScale2, 1), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-                    bpy.ops.uv.select_all(action='DESELECT')
-                facenumber += 1
-        else:
-            for face in bm.faces:
-                if facenumber in selected_uv_faces:
-                    # Primero des-selecciona todo
-                    bpy.ops.uv.select_all(action='DESELECT')
-
-                    # Selecciona la cara en la que está el iterador
-                    for vert in face.loops:
-                        vert[uv_layer].select = True
-
-                    # Selecciona el resto de la Island
-                    bpy.ops.uv.select_linked()
-
-                    # Aplica el Resize las islands
-                    bpy.context.scene.tool_settings.uv_select_mode = 'FACE'
-                    if sameRandomScale == False:
-                        currentScale = random.uniform(scale_min, scale_max)
-                        currentScale2 = random.uniform(scale_min, scale_max)
-                    bpy.ops.transform.resize(value=(currentScale, currentScale, currentScale), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-                    if evenScale == False:
-                        bpy.ops.transform.resize(value=(1, currentScale2, 1), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-                    
-                    # Quita las caras duplicadas del selected_uv_faces
-                    temp_selected_uv_faces = GetSelectedUVFaces_InEditMode(bm, uv_layer)
-                    selected_uv_faces = CompareListsAndRemoveElements(selected_uv_faces, temp_selected_uv_faces)
-                facenumber += 1
+                bpy.context.scene.tool_settings.uv_select_mode = 'FACE'
+                if sameRandomScale == False:
+                    currentScale = random.uniform(scale_min, scale_max)
+                    currentScale2 = random.uniform(scale_min, scale_max)
+                bpy.ops.transform.resize(value=(currentScale, currentScale, currentScale), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+                if evenScale == False:
+                    bpy.ops.transform.resize(value=(1, currentScale2, 1), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+                bpy.ops.uv.select_all(action='DESELECT')
+            facenumber += 1
 
         # Se asegura de que queden seleccionados solo los vértices de las caras utilizadas
-        SetSelectedFaces_InEditMode(bm, uv_layer, selected_uv_faces_before_applying_operator)
+        SetSelectedFaces_InEditMode(bm, uv_layer, selected_uv_faces)
 
-        bmesh.update_edit_mesh(me)
+        bmesh.update_edit_mesh(me, True)
         self.report({'INFO'}, "RANDOM SCALING: Done!")
         return {'FINISHED'}
     
@@ -999,8 +809,6 @@ class UVRANDOMIZER_OT_RandomScaleAll(bpy.types.Operator):
         sameRandomScale = UVRandomTranslateProps.applySameRandomScale
         applyEvenScale = UVRandomTranslateProps.applyEvenScale
 
-        keep_islands = UVRandomTranslateProps.keepIslands
-
         # Get a BMesh representation
         obj = bpy.context.edit_object
         me = obj.data
@@ -1009,8 +817,7 @@ class UVRANDOMIZER_OT_RandomScaleAll(bpy.types.Operator):
         uv_layer = bm.loops.layers.uv.active
         
         # Consigue las caras seleccionadas, para dejarlas como estaban luego de finalizar
-        selected_uv_faces_before_applying_operator = GetSelectedUVFaces_InEditMode(bm, uv_layer)
-        selected_uv_faces = selected_uv_faces_before_applying_operator.copy()
+        selected_uv_faces = GetSelectedUVFaces_InEditMode(bm, uv_layer)
 
         bpy.ops.uv.select_all(action='DESELECT')
         
@@ -1019,54 +826,25 @@ class UVRANDOMIZER_OT_RandomScaleAll(bpy.types.Operator):
         currentScale2 = random.uniform(scale_min, scale_max)
 
         # Aplica el scaling a las caras
-        if keep_islands == False:
-            for face in bm.faces:
-                bpy.context.scene.tool_settings.uv_select_mode = 'VERTEX'
-                for vert in face.loops:
-                    vert[uv_layer].select = True
-                bpy.context.scene.tool_settings.uv_select_mode = 'FACE'
-                if sameRandomScale == False:
-                    currentScale = random.uniform(scale_min, scale_max)
-                    currentScale2 = random.uniform(scale_min, scale_max)
-                bpy.ops.transform.resize(value=(currentScale, currentScale, currentScale), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-                if applyEvenScale == False:
-                    bpy.ops.transform.resize(value=(1, currentScale2, 1), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-                bpy.ops.uv.select_all(action='DESELECT')
-        else:
-            facenumber = 0
-            bpy.ops.uv.select_all(action='SELECT')
-            selected_uv_faces = GetSelectedUVFaces_InEditMode(bm, uv_layer)
-            for face in bm.faces:
-                if facenumber in selected_uv_faces:
-                    # Primero des-selecciona todo
-                    bpy.ops.uv.select_all(action='DESELECT')
-
-                    # Selecciona la cara en la que está el iterador
-                    for vert in face.loops:
-                        vert[uv_layer].select = True
-
-                    # Selecciona el resto de la Island
-                    bpy.ops.uv.select_linked()
-
-                    # Aplica el Resize las islands
-                    bpy.context.scene.tool_settings.uv_select_mode = 'FACE'
-                    if sameRandomScale == False:
-                        currentScale = random.uniform(scale_min, scale_max)
-                        currentScale2 = random.uniform(scale_min, scale_max)
-                    bpy.ops.transform.resize(value=(currentScale, currentScale, currentScale), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-                    if applyEvenScale == False:
-                        bpy.ops.transform.resize(value=(1, currentScale2, 1), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-                    
-                    # Quita las caras duplicadas del selected_uv_faces
-                    temp_selected_uv_faces = GetSelectedUVFaces_InEditMode(bm, uv_layer)
-                    selected_uv_faces = CompareListsAndRemoveElements(selected_uv_faces, temp_selected_uv_faces)
-                facenumber += 1
-            
+        facenumber = 0
+        for face in bm.faces:
+            bpy.context.scene.tool_settings.uv_select_mode = 'VERTEX'
+            for vert in face.loops:
+                vert[uv_layer].select = True
+            bpy.context.scene.tool_settings.uv_select_mode = 'FACE'
+            if sameRandomScale == False:
+                currentScale = random.uniform(scale_min, scale_max)
+                currentScale2 = random.uniform(scale_min, scale_max)
+            bpy.ops.transform.resize(value=(currentScale, currentScale, currentScale), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+            if applyEvenScale == False:
+                bpy.ops.transform.resize(value=(1, currentScale2, 1), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
+            bpy.ops.uv.select_all(action='DESELECT')
+            facenumber += 1
         
         # Vuelve a dejar las caras como estaban
-        SetSelectedFaces_InEditMode(bm, uv_layer, selected_uv_faces_before_applying_operator)
+        SetSelectedFaces_InEditMode(bm, uv_layer, selected_uv_faces)
 
-        bmesh.update_edit_mesh(me)
+        bmesh.update_edit_mesh(me, True)
         
         if hasToReturn == True:
             bpy.ops.object.editmode_toggle()
@@ -1164,12 +942,6 @@ class UVRANDOMIZER_PT_UVRandomizer(bpy.types.Panel):
         UVRandomTranslateProps = scene.UVRandomTranslateProps
         obj = context.object
         
-        row = layout.row()
-        row.label(text="GENERAL SETTINGS")
-        box = layout.box()
-        mcol = box.column(align=True)
-        mcol.prop(UVRandomTranslateProps, "keepIslands")
-
         row = layout.row()
         row.label(text="TRANSLATE FACES")
         
